@@ -18,24 +18,26 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
-
+// ✅ CORS fix: allow GitHub Pages + localhost
+app.use(cors({
+  origin: [
+    "http://127.0.0.1:5500", 
+    "https://Shubham-Srivastava2306.github.io"
+  ],
+  credentials: true
+}));
 
 app.use(express.json());
 
-app.use("/api/student", chatbotRoutes);
-
-// Routes
-
-
-
+// ✅ Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/faculty", facultyRoutes);
-app.use("/api/admin", timetableRoutes);
+app.use("/api/timetable", timetableRoutes);
 app.use("/api/notice", noticeRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 app.get("/", (req, res) => res.send("College ERP Backend Running..."));
 
