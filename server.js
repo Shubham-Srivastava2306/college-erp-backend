@@ -21,12 +21,16 @@ const app = express();
 // ✅ CORS fix: allow GitHub Pages + localhost
 app.use(cors({
   origin: [
-    "http://127.0.0.1:5500", 
-    "https://Shubham-Srivastava2306.github.io"
+    "https://shubham-srivastava2306.github.io",
+    "http://127.0.0.1:5500"
   ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
+// ✅ Explicitly handle OPTIONS requests
+app.options("*", cors());
 app.use(express.json());
 
 // ✅ Routes
