@@ -41,7 +41,7 @@ app.use("/api/faculty", facultyRoutes);
 app.use("/api/timetable", timetableRoutes);
 app.use("/api/notice", noticeRoutes);
 app.use("/api/attendance", attendanceRoutes);
-app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/student", chatbotRoutes);
 
 app.get("/", (req, res) => res.send("College ERP Backend Running..."));
 
