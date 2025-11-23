@@ -1,10 +1,37 @@
 import express from "express";
 import Attendance from "../models/Attendance.js";
-import { protect } from "../middleware/authMiddleware.js";
 import Marks from "../models/Marks.js";
+import { protect } from "../middleware/authMiddleware.js";
+
 const router = express.Router();
 
-// ✅ GET attendance by rollNo (overall OR subject-wise)
+/**
+ * ✅ Student Profile
+ */
+router.get("/profile", protect, async (req, res) => {
+  try {
+    if (req.user.role !== "student") {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    res.json({
+      success: true,
+      student: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        rollNo: req.user.rollNo
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/**
+ * ✅ Attendance (overall + subject-wise + daily records)
+ */
 router.get("/attendance", protect, async (req, res) => {
   try {
     const { rollNo } = req.user;
@@ -22,7 +49,7 @@ router.get("/attendance", protect, async (req, res) => {
       {
         $group: {
           _id: "$subject",
-          present: { $sum: { $cond: [{ $eq: ["$status","present"]},1,0]} },
+          present: { $sum: { $cond: [{ $eq: ["$status", "present"] }, 1, 0] } },
           total: { $sum: 1 }
         }
       },
@@ -33,69 +60,72 @@ router.get("/attendance", protect, async (req, res) => {
           total: 1,
           percentage: {
             $cond: [
-              { $eq: ["$total",0]}, 0,
-              { $round: [{ $multiply: [{ $divide: ["$present","$total"]},100]},0] }
+              { $eq: ["$total", 0] },
+              0,
+              { $round: [{ $multiply: [{ $divide: ["$present", "$total"] }, 100] }, 0] }
             ]
           }
         }
       }
     ]);
 
-    // ✅ True overall (always across all subjects for this rollNo)
+    // Overall summary (across all subjects)
     const overallAgg = await Attendance.aggregate([
-  { $match: { rollNo } },  // ❗ subject filter hata diya
-  {
-    $group: {
-      _id: null,
-      present: { $sum: { $cond: [{ $eq: ["$status", "present"] }, 1, 0] } },
-      total: { $sum: 1 }
-    }
-  },
-  {
-    $project: {
-      present: 1,
-      total: 1,
-      absent: { $subtract: ["$total", "$present"] },
-      percentage: {
-        $cond: [
-          { $eq: ["$total", 0] },
-          0,
-          { $round: [{ $multiply: [{ $divide: ["$present", "$total"] }, 100] }, 0] }
-        ]
+      { $match: { rollNo } },
+      {
+        $group: {
+          _id: null,
+          present: { $sum: { $cond: [{ $eq: ["$status", "present"] }, 1, 0] } },
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          present: 1,
+          total: 1,
+          absent: { $subtract: ["$total", "$present"] },
+          percentage: {
+            $cond: [
+              { $eq: ["$total", 0] },
+              0,
+              { $round: [{ $multiply: [{ $divide: ["$present", "$total"] }, 100] }, 0] }
+            ]
+          }
+        }
       }
-    }
-  }
-]);
+    ]);
 
     const overall = overallAgg.length
       ? overallAgg[0]
       : { present: 0, total: 0, absent: 0, percentage: 0 };
 
-    res.json({ success:true, summary, records, overall });
+    res.json({ success: true, summary, records, overall });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success:false, message:"Server Error" });
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-
+/**
+ * ✅ Marks (examType + subject-wise + overall average)
+ */
 router.get("/marks/:examType/:subject?", protect, async (req, res) => {
   try {
-    const { rollNo } = req.user;   // ✅ JWT payload
+    const { rollNo } = req.user;
     const { subject, examType } = req.params;
 
     if (!examType) {
       return res.status(400).json({ success: false, message: "Exam Type is required" });
     }
 
-    // ✅ Filtered query
+    // Filtered query
     let matchQuery = { rollNo, examType };
     if (subject) matchQuery.subject = subject;
 
-    // ✅ Filtered records
+    // Records
     const records = await Marks.find(matchQuery).sort({ createdAt: 1 });
 
-    // ✅ Filtered summary
+    // Subject-wise summary
     const summary = await Marks.aggregate([
       { $match: matchQuery },
       {
@@ -122,7 +152,7 @@ router.get("/marks/:examType/:subject?", protect, async (req, res) => {
       }
     ]);
 
-    // ✅ Global overall (no subject filter, across all exams)
+    // Global overall average
     const overallAgg = await Marks.aggregate([
       { $match: { rollNo } },
       {
@@ -153,6 +183,5 @@ router.get("/marks/:examType/:subject?", protect, async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
-
 
 export default router;
