@@ -19,17 +19,12 @@ export const protect = async (req, res, next) => {
         req.user = await Faculty.findById(decoded.id).select("-password");
         req.user.role = "faculty";
       } else if (decoded.role === "student") {
-        // ✅ Use JWT payload rollNo directly
         const student = await Student.findById(decoded.id).select("-password");
         if (!student) return res.status(401).json({ success: false, message: "Student not found" });
 
-        req.user = {
-          id: student._id,
-          name: student.name,
-          email: student.email,
-          role: "student",
-          rollNo: decoded.rollNo // ✅ preserve rollNo from token
-        };
+        req.user = student.toObject(); // ✅ full student object
+        req.user.role = "student";
+        req.user.rollNo = decoded.rollNo; // ✅ ensure rollNo preserved
       }
 
       if (!req.user) {
